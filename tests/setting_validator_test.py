@@ -28,9 +28,5 @@ def validate_robot_footprint(value):
             )
 
 
-def main():
-    validate("robot.footprint", 3)
-
-
-if __name__ == "__main__":
-    main()
+def test_footprint():
+    validate("robot.footprint", [[1, 2]])
