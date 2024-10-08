@@ -1,0 +1,14 @@
+[FORMAT]
+ignore=migrations,useless-suppression
+max-line-length=120
+enable=all
+good-names=format,pk,i,j,c,t,x,y,z,w,r,id,e,t0,t1,t2,t3,t4,m,s,f,d,p,fp,sn,ns,it,xs,ys,v,pt,ok,ip
+disable=missing-function-docstring,
+    missing-module-docstring,
+    missing-class-docstring,
+    too-few-public-methods,
+    locally-disabled,
+    suppressed-message,
+    redefined-builtin,
+    singleton-comparison,
+    use-implicit-booleaness-not-comparison-to-zero
