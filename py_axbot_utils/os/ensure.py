@@ -5,6 +5,8 @@ import re
 import shutil
 import stat
 import sys
+from distutils.version import LooseVersion
+from enum import Enum
 from typing import List, Union
 
 from .exec import exec, exec_get_output
@@ -66,7 +68,9 @@ def ensure_uncomment_lines(filename: str, starters: Union[List[str], str]):
             if striped_line.startswith("#"):
                 target_content = striped_line[1:].strip()
                 if target_content.startswith(start):
-                    lines[i] = line[: len(line) - len(striped_line)] + f"{target_content}"
+                    lines[i] = (
+                        line[: len(line) - len(striped_line)] + f"{target_content}"
+                    )
                     updated = True
 
     if updated:
@@ -87,7 +91,10 @@ def ensure_access(path: str, permission: str = "ax:ax"):
 
     rtn = exec_get_output(f"find -L {path} -type f  | grep .", checked=False)
     if rtn.returncode == 0:
-        exec(f"find -L {path} -type f -print0 | sudo xargs -0 chmod ug+w", debug=__ENSURE_DEBUG)
+        exec(
+            f"find -L {path} -type f -print0 | sudo xargs -0 chmod ug+w",
+            debug=__ENSURE_DEBUG,
+        )
 
 
 def ensure_link_file(src: str, dest: str) -> bool:
@@ -187,7 +194,10 @@ def user_exists(user_name) -> bool:
 def ensure_user(user_name):
     println(f"# ensure user '{user_name}'")
     if not user_exists(user_name):
-        exec(f'adduser --disabled-password --gecos "" --ingroup {user_name} {user_name}', debug=__ENSURE_DEBUG)
+        exec(
+            f'adduser --disabled-password --gecos "" --ingroup {user_name} {user_name}',
+            debug=__ENSURE_DEBUG,
+        )
 
 
 def ensure_user_in_groups(user_name, groups: str):
@@ -348,8 +358,12 @@ def find_missing_packages(packages: List[str], verbose=False) -> List[str]:
             installed_packages.append(m[1])
 
     # remove tailing ARCH like "xxx:arm64"
-    installed_packages = set(map(lambda x: x if x.find(":") == -1 else x[: x.find(":")], installed_packages))
-    wanted_packages = set(map(lambda x: x if x.find(":") == -1 else x[: x.find(":")], packages))
+    installed_packages = set(
+        map(lambda x: x if x.find(":") == -1 else x[: x.find(":")], installed_packages)
+    )
+    wanted_packages = set(
+        map(lambda x: x if x.find(":") == -1 else x[: x.find(":")], packages)
+    )
     diff = wanted_packages.difference(set(installed_packages))
     if len(diff) == 0:
         if verbose:
@@ -401,27 +415,95 @@ def ensure_apt_install(packages: List[str]):
 
 def __find_missing_pip3_packages(packages: List[str]):
     if len(packages) == 0:
-        return False
+        return []
 
     # get installed packages
-    rtn = exec_get_output("pip3 --disable-pip-version-check list --format=json")
+    rtn = exec_get_output(
+        "python3 -m pip --disable-pip-version-check list --format=json", checked=False
+    )
+    if rtn.returncode != 0:
+        raise Exception(f"Unable to get installed packages: {rtn.stderr}")
     installed_packages = json.loads(rtn.stdout)
-    installed_packages = list(map(lambda x: x["name"], installed_packages))
 
-    # ignore dash and underscore
-    installed_packages = [package.replace("-", "_") for package in installed_packages]
-    packages = [package.replace("-", "_") for package in packages]
+    return find_missing_pip3_packages_imple(packages, installed_packages)
 
-    diff = set(packages).difference(set(installed_packages))
-    if len(diff) == 0:
-        println("debug: All required packages found. Skip.")
-        for pkg in packages:
-            println(f"debug: skipped {pkg}")
-        return False
 
-    println("Some PIP packages are missing: " + str(diff))
+def find_missing_pip3_packages_imple(packages: List[str], installed_packages: dict):
+    class PackageVersionCondition(Enum):
+        NONE = "none"
+        EQ = "eq"
+        GE = "ge"
+        GT = "gt"
+        LE = "le"  # not implemented
+        LT = "lt"  # not implemented
 
-    return True
+    installed_packages = dict(
+        map(
+            lambda x: (x["name"].replace("-", "_").lower(), x["version"]),
+            installed_packages,
+        )
+    )
+    new_packages = []
+    for package in packages:
+        package_name = None
+        package_version = None
+        condition = None
+        if package.find("==") >= 0:
+            pkg = package.split("==")
+            package_name = pkg[0].replace("-", "_").lower()
+            package_version = pkg[1]
+            condition = PackageVersionCondition.EQ
+        elif package.find(">=") >= 0:
+            pkg = package.split(">=")
+            package_name = pkg[0].replace("-", "_").lower()
+            package_version = pkg[1]
+            condition = PackageVersionCondition.GE
+        elif package.find(">") >= 0:
+            pkg = package.split(">")
+            package_name = pkg[0].replace("-", "_").lower()
+            package_version = pkg[1]
+            condition = PackageVersionCondition.GT
+        else:
+            package_name = package.replace("-", "_").lower()
+
+        # if already installed same version package
+        if package_name in installed_packages.keys():
+            if package_version is None:
+                continue
+            if condition != None:
+                if condition == PackageVersionCondition.EQ:
+                    if package_version == installed_packages[package_name]:
+                        continue
+                elif condition == PackageVersionCondition.GE:
+                    if LooseVersion(package_version) > LooseVersion(
+                        installed_packages[package_name]
+                    ):
+                        package = f"'{package}'"  # needs to be wrapped by quotes
+                    else:
+                        println(
+                            f"installed version {installed_packages[package_name]} already >= required version {package_version}"
+                        )
+                        continue
+                elif condition == PackageVersionCondition.GT:
+                    if LooseVersion(package_version) >= LooseVersion(
+                        installed_packages[package_name]
+                    ):
+                        package = f"'{package}'"  # needs to be wrapped by quotes
+                    else:
+                        println(
+                            f"installed version {installed_packages[package_name]} already > required version {package_version}"
+                        )
+                        continue
+                else:
+                    println(f"warning: install {package} not supported, ignore it")
+                    continue
+        elif package_version is not None:
+            package = (
+                f"'{package}'"  # needs to be wrapped by quotes if condition is not None
+            )
+
+        new_packages.append(package)
+    return new_packages
 
 
 def check_pip3_packages(packages: List[str]):
@@ -430,7 +512,8 @@ def check_pip3_packages(packages: List[str]):
     """
     println("# check pip3 packages")
 
-    if __find_missing_pip3_packages(packages):
+    new_packages = __find_missing_pip3_packages(packages)
+    if len(new_packages) > 0:
         sys.exit(1)
 
 
@@ -443,15 +526,17 @@ def ensure_pip3_install(packages: List[str]):
         [
             "termcolor",
             "psutil",
+            "'paho-mqtt>=2.0.0'",
         ]
     )
     ```
     """
     println("# ensure pip3 packages")
 
-    if __find_missing_pip3_packages(packages):
-        package_list = " ".join(packages)
-        exec(f"pip3 install --disable-pip-version-check {package_list}")
+    new_packages = __find_missing_pip3_packages(packages)
+    if len(new_packages) > 0:
+        package_list = " ".join(new_packages)
+        exec(f"python3 -m pip --disable-pip-version-check install {package_list}")
 
 
 def ensure_no_pyc(path: str):

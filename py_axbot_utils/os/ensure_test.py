@@ -1,17 +1,20 @@
-import re
 import os
+import re
 
 from .ensure import (
+    TextFileModifier,
     ensure_comment_lines,
     ensure_del_file_content,
     ensure_file,
+    ensure_lines_in_file,
     ensure_modify_file,
-    find_missing_packages,
     ensure_uncomment_lines,
     ensure_unlink_file,
-    TextFileModifier,
+    ensure_user,
+    find_missing_packages,
+    find_missing_pip3_packages_imple,
+    user_exists,
 )
-from .ensure import ensure_user, ensure_lines_in_file, user_exists
 from .exec import exec, exec_get_output
 
 
@@ -297,3 +300,17 @@ def test_set_content():
         mod.set_content(["abc\n", "", "def"])
 
     assert file_content(filename) == "abc\n\n\ndef\n"
+
+
+def test_find_missing_pip3_packages():
+    pip3_list = [
+        "requests",
+        "pymodbus==2.5.3",
+        "paho-mqtt>=2.0.0",
+    ]
+    installed_packages = [
+        {"name": "paho_mqtt", "version": "2.0.0"},
+        {"name": "requests", "version": "2.22.0"},
+    ]
+    new_packages = find_missing_pip3_packages_imple(pip3_list, installed_packages)
+    assert "'pymodbus==2.5.3'" == " ".join(new_packages)
