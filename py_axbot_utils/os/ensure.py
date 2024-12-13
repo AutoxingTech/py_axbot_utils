@@ -308,8 +308,11 @@ class TextFileModifier:
 
     def _change_tmp_file_permissions(self, tmp_file: str):
         st = os.stat(self.__filename)
+        tmp_st = os.stat(tmp_file)
         old_file_permissions = stat.S_IMODE(st.st_mode)
-        os.chmod(tmp_file, old_file_permissions)
+        new_file_permissions = stat.S_IMODE(tmp_st.st_mode)
+        if old_file_permissions != new_file_permissions:
+            os.chmod(tmp_file, old_file_permissions)
 
     def save(self):
         if self.__old_lines != self.__lines:
