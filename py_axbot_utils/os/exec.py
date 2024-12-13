@@ -14,10 +14,11 @@ def set_print_only(print_only: bool):
 def exec(cmd: str, check=True):
     print("> " + cmd)
     if __PRINT_ONLY:
-        return
+        return 0
 
     try:
-        subprocess.run(cmd, shell=True, check=check)
+        rtn = subprocess.run(cmd, shell=True, check=check)
+        return rtn.returncode
     except subprocess.CalledProcessError as e:
         println("error: " + str(e))
         sys.exit(e.returncode)
@@ -50,7 +51,7 @@ def exec_get_output(cmd, checked: bool = True) -> ExecResult:
             print(f"> {cmd}")
         else:
             print(f'> {" ".join(cmd)}')
-        return
+        return ExecResult(0, "", "")
 
     try:
         rtn = subprocess.run(

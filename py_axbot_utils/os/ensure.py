@@ -306,11 +306,17 @@ class TextFileModifier:
     def modified(self):
         return self.__old_lines != self.__lines
 
+    def _change_tmp_file_permissions(self, tmp_file: str):
+        st = os.stat(self.__filename)
+        old_file_permissions = stat.S_IMODE(st.st_mode)
+        os.chmod(tmp_file, old_file_permissions)
+
     def save(self):
         if self.__old_lines != self.__lines:
             tmp = self.__filename + ".tmp"
             with open(tmp, "w", encoding="utf8") as f:
                 f.writelines(self.__lines)
+            self._change_tmp_file_permissions(tmp)
             os.rename(tmp, self.__filename)
 
     def delete_lines_with_pattern(self, pattern: str, echo=True):
