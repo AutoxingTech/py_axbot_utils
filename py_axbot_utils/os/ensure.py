@@ -258,7 +258,7 @@ class TextFileModifier:
         self.__lines = []
         try:
             with open(filename, "r", encoding="utf8") as f:
-                self.__lines: str = f.readlines()
+                self.__lines = f.readlines()
             self.__old_lines = [*self.__lines]
         except FileNotFoundError:
             pass

@@ -39,7 +39,7 @@ def exec_in_background(cmd: str):
 
 
 class ExecResult:
-    def __init__(self, returncode: int, stdout: str, stderr: str) -> None:
+    def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
         self.returncode: int = returncode
         self.stdout: str = stdout
         self.stderr: str = stderr
@@ -51,7 +51,7 @@ def exec_get_output(cmd, checked: bool = True) -> ExecResult:
             print(f"> {cmd}")
         else:
             print(f'> {" ".join(cmd)}')
-        return ExecResult(0, "", "")
+        return ExecResult(0)
 
     try:
         rtn = subprocess.run(
