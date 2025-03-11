@@ -1,6 +1,7 @@
 import math
-from typing import List
+from typing import List, Union
 
+from geometry_msgs.msg import Point as PointMsg
 from geometry_msgs.msg import Pose as PoseMsg
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from geometry_msgs.msg import Quaternion as QuaternionMsg
@@ -14,6 +15,10 @@ class Vector2:
 
     def to_ros(self) -> Vector3Msg:
         v = Vector3Msg(x=self.x, y=self.y, z=0)
+        return v
+
+    def to_ros_point(self) -> PointMsg:
+        v = PointMsg(x=self.x, y=self.y, z=0)
         return v
 
     # rotate a 2d vector counter-clockwise
@@ -66,6 +71,10 @@ class Vector3:
 
     def to_ros(self) -> Vector3Msg:
         v = Vector3Msg(x=self.x, y=self.y, z=self.z)
+        return v
+    
+    def to_ros_point(self) -> PointMsg:
+        v = PointMsg(x=self.x, y=self.y, z=self.z)
         return v
 
     def to_vector2(self):
@@ -140,7 +149,7 @@ class Quaternion:
         return q
 
     @staticmethod
-    def from_rpy(roll=None or RollPitchYaw, pitch=None, yaw=None):
+    def from_rpy(roll: Union[RollPitchYaw, float], pitch=None, yaw=None):
         q = Quaternion()
 
         if isinstance(roll, RollPitchYaw):
@@ -321,23 +330,25 @@ class Pose3:
     def __repr__(self):
         return str(self)
 
-    def __mul__(self, r: "Pose3"):
-        return Pose3(pos=self.pos + self.ori * r.pos, ori=self.ori * r.ori)
+    def __mul__(self, r: Union["Pose3", Vector3]):
+        if isinstance(r, Vector3):
+            return self.ori.transform_vector(r) + self.pos
+        return Pose3(pos=self.pos + self.ori.transform_vector(r.pos), ori=self.ori * r.ori)
 
     def __eq__(self, r: "Pose3"):
         return r != None and self.pos == r.pos and self.ori == r.ori
 
 
 def polygon_inside(poly: List, x: float, y: float):
-    n = len(poly)
-    if n < 2:
+    points_count = len(poly)
+    if points_count < 2:
         return False
 
     inside = False
 
     p1x, p1y = poly[0]
-    for i in range(n + 1):
-        p2x, p2y = poly[i % n]
+    for i in range(points_count + 1):
+        p2x, p2y = poly[i % points_count]
         if y > min(p1y, p2y):
             if y <= max(p1y, p2y):
                 if x <= max(p1x, p2x):

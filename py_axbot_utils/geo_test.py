@@ -4,6 +4,7 @@ import pytest
 from geometry_msgs.msg import Pose as PoseMsg
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from geometry_msgs.msg import Vector3 as Vector3Msg
+from geometry_msgs.msg import Point as PointMsg
 
 from .geo import Pose2, Pose3, Quaternion, RollPitchYaw, Vector2, Vector3, polygon_inside
 
@@ -38,6 +39,7 @@ def test_vector3():
     assert Vector3(2, 4, 6) / 2 == Vector3(1, 2, 3)
 
     assert Vector3(1, 2, 3).to_ros() == Vector3Msg(x=1, y=2, z=3)
+    assert Vector3(1, 2, 3).to_ros_point() == PointMsg(x=1, y=2, z=3)
 
 
 def test_pose():
@@ -258,6 +260,13 @@ def test_pose3_concatenate():
 
     assert final_pose.pos.x == pytest.approx(-0.7071, 0.0001)
     assert final_pose.pos.y == pytest.approx(1 - 0.7071, 0.001)
+
+def test_pose3_transform_vector3():
+    pose = Pose3(Vector3(0, 1, 0), Quaternion.from_rpy(0, 0, math.pi / 4))
+    result = pose * Vector3(1, 0, 0)
+    assert result.x == pytest.approx(math.sqrt(2) / 2, 0.0001)
+    assert result.y == pytest.approx(math.sqrt(2) / 2 + 1, 0.0001)
+    assert result.z == pytest.approx(0, 0.0001)
 
 
 def test_pose3_from_ros():
