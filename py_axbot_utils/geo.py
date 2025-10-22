@@ -72,7 +72,7 @@ class Vector3:
     def to_ros(self) -> Vector3Msg:
         v = Vector3Msg(x=self.x, y=self.y, z=self.z)
         return v
-    
+
     def to_ros_point(self) -> PointMsg:
         v = PointMsg(x=self.x, y=self.y, z=self.z)
         return v
@@ -119,7 +119,12 @@ class RollPitchYaw:
         self.yaw = y
 
     def __eq__(self, r: "RollPitchYaw"):
-        return r != None and self.roll == r.roll and self.pitch == r.pitch and self.yaw == r.yaw
+        return (
+            r != None
+            and self.roll == r.roll
+            and self.pitch == r.pitch
+            and self.yaw == r.yaw
+        )
 
     def __str__(self):
         return f"RollPitchYaw({self.roll}, {self.pitch}, {self.yaw})"
@@ -217,9 +222,15 @@ class Quaternion:
         num5 = self.y * num2
         num4 = self.y * num
         num3 = self.z * num
-        num15 = ((v.x * ((1.0 - num5) - num3)) + (v.y * (num7 - num9))) + (v.z * (num6 + num10))
-        num14 = ((v.x * (num7 + num9)) + (v.y * ((1.0 - num8) - num3))) + (v.z * (num4 - num11))
-        num13 = ((v.x * (num6 - num10)) + (v.y * (num4 + num11))) + (v.z * ((1.0 - num8) - num5))
+        num15 = ((v.x * ((1.0 - num5) - num3)) + (v.y * (num7 - num9))) + (
+            v.z * (num6 + num10)
+        )
+        num14 = ((v.x * (num7 + num9)) + (v.y * ((1.0 - num8) - num3))) + (
+            v.z * (num4 - num11)
+        )
+        num13 = ((v.x * (num6 - num10)) + (v.y * (num4 + num11))) + (
+            v.z * ((1.0 - num8) - num5)
+        )
 
         return Vector3(num15, num14, num13)
 
@@ -239,7 +250,13 @@ class Quaternion:
         raise TypeError(f"Quaternion can't multiple with {type(r)}")
 
     def __eq__(self, r: "Quaternion"):
-        return r != None and self.x == r.x and self.y == r.y and self.z == r.z and self.w == r.w
+        return (
+            r != None
+            and self.x == r.x
+            and self.y == r.y
+            and self.z == r.z
+            and self.w == r.w
+        )
 
     def __str__(self):
         return f"Quaternion({self.x}, {self.y}, {self.z}, {self.w})"
@@ -265,6 +282,9 @@ class Pose2:
 
     def inverse(self):
         return Pose2((-self.pos).rotate(-self.ori), -self.ori)
+
+    def transform_vector(self, v: Vector2) -> Vector2:
+        return v.rotate(self.ori) + self.pos
 
     def __str__(self):
         return f"Pose2(x = {self.pos.x}, y = {self.pos.y}, ori = {self.ori})"
@@ -292,7 +312,9 @@ class Pose3:
 
     @staticmethod
     def from_pose2(pose2: Pose2) -> "Pose3":
-        return Pose3(Vector3(pose2.pos.x, pose2.pos.y, 0), Quaternion.from_rpy(0, 0, pose2.ori))
+        return Pose3(
+            Vector3(pose2.pos.x, pose2.pos.y, 0), Quaternion.from_rpy(0, 0, pose2.ori)
+        )
 
     @staticmethod
     def from_ros(msg: PoseMsg or PoseWithCovarianceStamped or PoseStamped) -> "Pose3":
@@ -310,7 +332,12 @@ class Pose3:
 
         return Pose3(
             Vector3(pose.position.x, pose.position.y, pose.position.z),
-            Quaternion.from_xyzw(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
+            Quaternion.from_xyzw(
+                pose.orientation.x,
+                pose.orientation.y,
+                pose.orientation.z,
+                pose.orientation.w,
+            ),
         )
 
     def to_ros(self) -> PoseMsg:
@@ -330,10 +357,15 @@ class Pose3:
     def __repr__(self):
         return str(self)
 
+    def transform_vector(self, v: Vector3) -> Vector3:
+        return self.ori.transform_vector(v) + self.pos
+
     def __mul__(self, r: Union["Pose3", Vector3]):
         if isinstance(r, Vector3):
             return self.ori.transform_vector(r) + self.pos
-        return Pose3(pos=self.pos + self.ori.transform_vector(r.pos), ori=self.ori * r.ori)
+        return Pose3(
+            pos=self.pos + self.ori.transform_vector(r.pos), ori=self.ori * r.ori
+        )
 
     def __eq__(self, r: "Pose3"):
         return r != None and self.pos == r.pos and self.ori == r.ori
