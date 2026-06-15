@@ -154,6 +154,17 @@ class Quaternion:
         return q
 
     @staticmethod
+    def from_angle_axis(angle: float, axis: Vector3) -> "Quaternion":
+        half = angle / 2
+        sin_half = math.sin(half)
+        return Quaternion(
+            x=axis.x * sin_half,
+            y=axis.y * sin_half,
+            z=axis.z * sin_half,
+            w=math.cos(half),
+        )
+
+    @staticmethod
     def from_rpy(roll: Union[RollPitchYaw, float], pitch=None, yaw=None):
         q = Quaternion()
 

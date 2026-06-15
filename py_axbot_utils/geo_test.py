@@ -6,7 +6,15 @@ from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from geometry_msgs.msg import Vector3 as Vector3Msg
 from geometry_msgs.msg import Point as PointMsg
 
-from .geo import Pose2, Pose3, Quaternion, RollPitchYaw, Vector2, Vector3, polygon_inside
+from .geo import (
+    Pose2,
+    Pose3,
+    Quaternion,
+    RollPitchYaw,
+    Vector2,
+    Vector3,
+    polygon_inside,
+)
 
 
 def test_vector2():
@@ -146,6 +154,38 @@ def test_quaternion_2():
     assert rpy.yaw == pytest.approx(1, 0.01)
 
 
+def test_quaternion_from_angle_axis():
+    # 90 deg around Z axis -> should be same as from_rpy(0, 0, pi/2)
+    q = Quaternion.from_angle_axis(math.pi / 2, Vector3(0, 0, 1))
+    ref = Quaternion.from_rpy(0, 0, math.pi / 2)
+    assert q.x == pytest.approx(ref.x, 0.0001)
+    assert q.y == pytest.approx(ref.y, 0.0001)
+    assert q.z == pytest.approx(ref.z, 0.0001)
+    assert q.w == pytest.approx(ref.w, 0.0001)
+
+    # rotation around Z axis should not change Z component of (0,0,1)
+    v = q.transform_vector(Vector3(0, 0, 1))
+    assert v.x == pytest.approx(0, 0.0001)
+    assert v.y == pytest.approx(0, 0.0001)
+    assert v.z == pytest.approx(1, 0.0001)
+
+    # 180 deg around X axis
+    q = Quaternion.from_angle_axis(math.pi, Vector3(1, 0, 0))
+    assert q.w == pytest.approx(0, 0.0001)
+    assert q.x == pytest.approx(1, 0.0001)
+
+    # identity: angle=0
+    q = Quaternion.from_angle_axis(0, Vector3(1, 0, 0))
+    assert q == Quaternion.identity()
+
+    # 360 deg around Y axis
+    q = Quaternion.from_angle_axis(2 * math.pi, Vector3(0, 1, 0))
+    assert q.w == pytest.approx(-1, 0.0001)
+    assert q.x == pytest.approx(0, 0.0001)
+    assert q.y == pytest.approx(0, 0.0001)
+    assert q.z == pytest.approx(0, 0.0001)
+
+
 def test_pose2():
     pose = Pose2()
     assert pose.pos == Vector2(0, 0)
@@ -198,7 +238,9 @@ def test_pose3():
     ori = Quaternion.from_rpy(0.1, 0.2, 0.3)
     pose = Pose3(Vector3(1, 2, 3), ori)
     pose = pose.inverse()
-    assert pose.pos == Vector3(-0.9195443264500468, -1.9312845094019881, -3.0699476177025318)
+    assert pose.pos == Vector3(
+        -0.9195443264500468, -1.9312845094019881, -3.0699476177025318
+    )
     assert pose.ori == ori.inverse()
 
 
@@ -234,7 +276,10 @@ def test_pose2_concatenate():
 
 def test_pose3_concatenate():
     pose = Pose3(Vector3(0, 1, 0), Quaternion.from_rpy(0, 0, math.pi / 4))
-    pose2 = Pose3(Vector3(math.sqrt(2) / 2, math.sqrt(2) / 2, 0), Quaternion.from_rpy(0, 0, math.pi / 4))
+    pose2 = Pose3(
+        Vector3(math.sqrt(2) / 2, math.sqrt(2) / 2, 0),
+        Quaternion.from_rpy(0, 0, math.pi / 4),
+    )
 
     assert pose2.pos.length == pytest.approx(1, 0.0001)
 
@@ -260,6 +305,7 @@ def test_pose3_concatenate():
 
     assert final_pose.pos.x == pytest.approx(-0.7071, 0.0001)
     assert final_pose.pos.y == pytest.approx(1 - 0.7071, 0.001)
+
 
 def test_pose3_transform_vector3():
     pose = Pose3(Vector3(0, 1, 0), Quaternion.from_rpy(0, 0, math.pi / 4))
@@ -339,4 +385,6 @@ def test_map_pose_convert_3d():
     some_pose_in_map1 = poi_to_map1
     some_pose_in_map2 = map1_to_map2 * some_pose_in_map1
     assert some_pose_in_map2.pos == poi_to_map2.pos
-    assert (some_pose_in_map2.ori.inverse() * poi_to_map2.ori).to_rpy() == RollPitchYaw(0, 0, 0)
+    assert (some_pose_in_map2.ori.inverse() * poi_to_map2.ori).to_rpy() == RollPitchYaw(
+        0, 0, 0
+    )
